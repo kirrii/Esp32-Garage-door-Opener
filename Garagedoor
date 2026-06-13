@@ -1,0 +1,65 @@
+#include <WiFi.h>
+#include <WebServer.h>
+
+// --- CHANGE THESE ---
+const char* ssid     = "Lost";
+const char* password = "Thepasswordis2";
+// --------------------
+
+#define RELAY_PIN 26
+WebServer server(80);
+
+void pressButton() {
+  digitalWrite(RELAY_PIN, LOW);
+  delay(500);
+  digitalWrite(RELAY_PIN, HIGH);
+}
+
+String getPage() {
+  String html = "<!DOCTYPE html><html><head>";
+  html += "<meta name='viewport' content='width=device-width, initial-scale=1'>";
+  html += "<title>Garage</title>";
+  html += "<style>";
+  html += "body{display:flex;justify-content:center;align-items:center;height:100vh;margin:0;background:#1a1a1a;font-family:sans-serif;}";
+  html += "button{padding:50px 60px;font-size:28px;border-radius:20px;border:none;background:#4CAF50;color:white;cursor:pointer;}";
+  html += "#status{position:fixed;bottom:40px;font-size:18px;color:#888;}";
+  html += "</style></head><body>";
+  html += "<button onclick='press()'>Open Garage</button>";
+  html += "<div id='status'></div>";
+  html += "<script>";
+  html += "function press(){";
+  html += "document.getElementById('status').innerText='Sending...';";
+  html += "fetch('/press').then(()=>document.getElementById('status').innerText='Done!').catch(()=>document.getElementById('status').innerText='Failed');";
+  html += "}";
+  html += "</script></body></html>";
+  return html;
+}
+
+void setup() {
+  Serial.begin(115200);
+  pinMode(RELAY_PIN, OUTPUT);
+  digitalWrite(RELAY_PIN, HIGH);
+
+  WiFi.begin(ssid, password);
+  Serial.print("Connecting to WiFi");
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println("\nConnected! IP: " + WiFi.localIP().toString());
+
+  server.on("/", []() {
+    server.send(200, "text/html", getPage());
+  });
+
+  server.on("/press", []() {
+    pressButton();
+    server.send(200, "text/plain", "OK");
+  });
+
+  server.begin();
+}
+
+void loop() {
+  server.handleClient();
+}
